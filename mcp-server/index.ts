@@ -12,7 +12,12 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
+import {
+  CallToolRequestSchema,
+  ListResourcesRequestSchema,
+  ListToolsRequestSchema,
+  ReadResourceRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js'
 import Groq from 'groq-sdk'
 import dotenv from 'dotenv'
 import { 
@@ -26,6 +31,7 @@ import {
 dotenv.config()
 
 const SERVER_URL = process.env.SEARCH_API_URL || 'http://localhost:3001'
+const HEALTH_RESOURCE_URI = 'stellar-search://health'
 const GROQ_API_KEY = process.env.GROQ_API_KEY!
 
 const groq = new Groq({ apiKey: GROQ_API_KEY })
@@ -33,8 +39,38 @@ const groq = new Groq({ apiKey: GROQ_API_KEY })
 // ─── MCP server ───────────────────────────────────────────────────────────
 const server = new Server(
   { name: 'stellar-search', version: '1.0.0' },
-  { capabilities: { tools: {} } },
+  { capabilities: { resources: {}, tools: {} } },
 )
+
+server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+  resources: [
+    {
+      uri: HEALTH_RESOURCE_URI,
+      name: 'StellarSearch server health',
+      description: 'Live server health and search statistics from the /health endpoint.',
+      mimeType: 'application/json',
+    },
+  ],
+}))
+
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  if (request.params.uri !== HEALTH_RESOURCE_URI) {
+    throw new Error(`Unknown resource: ${request.params.uri}`)
+  }
+
+  const res = await fetch(`${SERVER_URL}/health`)
+  if (!res.ok) throw new Error(`Server health check returned ${res.status}`)
+
+  return {
+    contents: [
+      {
+        uri: HEALTH_RESOURCE_URI,
+        mimeType: 'application/json',
+        text: JSON.stringify(await res.json()),
+      },
+    ],
+  }
+})
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
