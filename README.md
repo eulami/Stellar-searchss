@@ -146,6 +146,8 @@ stellar-search/
 }
 ```
 
+The MCP server also exposes live health and search statistics as the `stellar-search://health` resource. MCP clients can list resources and read this URI; its JSON content comes from the configured server's `/health` endpoint. The existing `get_search_stats` tool remains available for clients that use the tool interface.
+
 Then tell Claude Code: `"Search for the latest Stellar x402 examples"` — it calls `web_search`, the server pays via x402, and Claude gets real results.
 
 ---
